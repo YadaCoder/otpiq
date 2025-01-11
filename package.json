@@ -1,0 +1,30 @@
+{
+  "name": "otpiq",
+  "version": "1.0.1",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "sms",
+    "verification",
+    "otp",
+    "2fa",
+    "otpiq"
+  ],
+  "author": "Yad Hersh",
+  "license": "MIT",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "description": "TypeScript client for the OTPiq SMS verification service",
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "cross-fetch": "^4.1.0"
+  }
+}
