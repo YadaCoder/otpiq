@@ -1,14 +1,16 @@
 # OTPiq Client
 
-A TypeScript/JavaScript client for the OTPiq SMS verification service. This package provides a clean and type-safe way to interact with the OTPiq API, supporting both automatic and custom verification code generation.
+A TypeScript/JavaScript client for the OTPiq SMS service. This package provides a clean and type-safe way to interact with the OTPiq API, supporting verification codes, custom messages, sender IDs, and message tracking.
 
 [![npm version](https://badge.fury.io/js/otpiq-client.svg)](https://www.npmjs.com/package/otpiq-client)
 [![TypeScript](https://badges.frapsoft.com/typescript/code/typescript.svg?v=101)](https://github.com/ellerbrock/typescript-badges/)
 
 ## Features
 
-- 📱 Easy SMS verification code sending
+- 📱 SMS verification code sending
+- 💬 Custom message support with sender IDs
 - 🎲 Automatic or custom verification code generation
+- ✨ WhatsApp message support
 - ✅ Full TypeScript support
 - 🔄 SMS status tracking
 - 💳 Credit management
@@ -35,56 +37,93 @@ const client = new OTPiqClient({
   apiKey: "your_api_key_here",
 });
 
-// Send SMS with auto-generated verification code
+// Send verification SMS with auto-generated code
 const response = await client.sendSMS({
   phoneNumber: "9647701234567",
   smsType: "verification",
 });
 
-// The verification code is included in the response
-const verificationCode = response.verificationCode;
-console.log("Generated code:", verificationCode);
+console.log("Generated code:", response.verificationCode);
 console.log("SMS ID:", response.smsId);
+
+// Send custom message with sender ID
+const customResponse = await client.sendSMS({
+  phoneNumber: "9647701234567",
+  smsType: "custom",
+  customMessage: "Welcome to our service!",
+  senderId: "MyBrand",
+});
 ```
 
 ## Handling Verification Codes
 
 ### Auto-generated Codes
 
-When you don't provide a verification code, the client automatically generates one and returns it in the response:
+When no verification code is provided, the client automatically generates one:
 
 ```typescript
-// Auto-generated code
 const response = await client.sendSMS({
   phoneNumber: "9647701234567",
   smsType: "verification",
   digitCount: 6, // Optional: customize length (default: 6)
 });
 
-// Store this code to verify against user input later
 const generatedCode = response.verificationCode;
-
-// Example verification
-function verifyUserInput(userInput: string) {
-  return userInput === generatedCode;
-}
 ```
 
-### Next.js Example
+### Custom Verification Codes
 
-Here's how you might use it in a Next.js API route:
+You can provide your own verification code:
+
+```typescript
+const response = await client.sendSMS({
+  phoneNumber: "9647701234567",
+  smsType: "verification",
+  verificationCode: "123456",
+});
+```
+
+## Sending Custom Messages
+
+Custom messages require a sender ID and will automatically use the SMS provider:
+
+```typescript
+const response = await client.sendSMS({
+  phoneNumber: "9647701234567",
+  smsType: "custom",
+  customMessage: "Your appointment is confirmed for tomorrow at 2 PM",
+  senderId: "MyBrand",
+});
+```
+
+## Managing Sender IDs
+
+Retrieve all your approved sender IDs:
+
+```typescript
+const senderIds = await client.getSenderIds();
+console.log("Available sender IDs:", senderIds.senderIds);
+```
+
+## Next.js Example
+
+Here's a complete Next.js API route implementation:
 
 ```typescript
 // pages/api/send-verification.ts
 import { OTPiqClient } from "otpiq";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default async function handler(req, res) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
   const client = new OTPiqClient({
-    apiKey: process.env.OTPIQ_API_KEY,
+    apiKey: process.env.OTPIQ_API_KEY!,
   });
 
   try {
@@ -100,13 +139,16 @@ export default async function handler(req, res) {
       smsId: response.smsId,
     });
 
-    // Don't send the code back to the client for security!
     res.status(200).json({
       message: "Verification code sent",
       smsId: response.smsId,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "An unknown error occurred" });
+    }
   }
 }
 ```
@@ -121,40 +163,106 @@ const client = new OTPiqClient({
 });
 ```
 
-### Sending SMS
+### Methods
+
+#### Send SMS
 
 ```typescript
-// Auto-generated verification code
+// Verification SMS with auto-generated code
 const response = await client.sendSMS({
   phoneNumber: "9647701234567",
   smsType: "verification",
-  digitCount: 6, // Optional: length of generated code (default: 6)
+  digitCount: 6, // Optional
   provider: "auto", // Optional: 'auto' | 'sms' | 'whatsapp'
 });
 
-// Custom verification code
+// Verification SMS with custom code
 const response = await client.sendSMS({
   phoneNumber: "9647701234567",
   smsType: "verification",
   verificationCode: "123456",
-  provider: "sms",
+  provider: "whatsapp", // Optional
+});
+
+// Custom message with sender ID
+const response = await client.sendSMS({
+  phoneNumber: "9647701234567",
+  smsType: "custom",
+  customMessage: "Your message here",
+  senderId: "MyBrand",
 });
 ```
 
-### Tracking SMS Status
+#### Track SMS Status
 
 ```typescript
 const status = await client.trackSMS("sms-1234567890");
-console.log("Status:", status.status);
+console.log("Delivery status:", status.status);
 console.log("Cost:", status.cost);
 ```
 
-### Getting Project Info
+#### Get Project Info
 
 ```typescript
 const info = await client.getProjectInfo();
 console.log("Project name:", info.projectName);
-console.log("Remaining credits:", info.credit);
+console.log("Available credits:", info.credit);
+```
+
+#### Get Sender IDs
+
+```typescript
+const senderIds = await client.getSenderIds();
+console.log("Available sender IDs:", senderIds.senderIds);
+```
+
+### Type Definitions
+
+#### SendSMSOptions
+
+```typescript
+interface SendSMSOptions {
+  phoneNumber: string;
+  smsType: "verification" | "custom";
+  verificationCode?: string | number;
+  customMessage?: string;
+  senderId?: string;
+  provider?: "auto" | "sms" | "whatsapp";
+  digitCount?: number;
+}
+```
+
+#### SMSResponse
+
+```typescript
+interface SMSResponse {
+  message: string;
+  smsId: string;
+  remainingCredit: number;
+  verificationCode?: string; // Only included for verification SMS
+}
+```
+
+#### SMSTrackingResponse
+
+```typescript
+interface SMSTrackingResponse {
+  status: "pending" | "delivered" | "failed";
+  phoneNumber: string;
+  smsId: string;
+  cost: number;
+}
+```
+
+#### SenderId
+
+```typescript
+interface SenderId {
+  id: string;
+  senderId: string;
+  status: "accepted" | "pending";
+  createdAt: string;
+}
 ```
 
 ## Error Handling
@@ -171,54 +279,32 @@ try {
   });
 } catch (error) {
   if (error instanceof InsufficientCreditError) {
-    console.log("Need more credits!", error.requiredCredit);
+    console.log(
+      `Need more credits! Required: ${error.requiredCredit}, ` +
+        `Available: ${error.yourCredit}`
+    );
   } else if (error instanceof RateLimitError) {
-    console.log("Please wait", error.waitMinutes, "minutes");
+    console.log(
+      `Rate limit exceeded. Try again in ${error.waitMinutes} minutes. ` +
+        `Limit: ${error.maxRequests} requests per ${error.timeWindowMinutes} minutes`
+    );
   } else if (error instanceof OTPiqError) {
     console.log("API Error:", error.message);
   }
 }
 ```
 
-## Types
+## Best Practices
 
-### SendSMSOptions
-
-```typescript
-interface SendSMSOptions {
-  phoneNumber: string;
-  verificationCode?: string | number;
-  smsType: "verification";
-  provider?: "auto" | "sms" | "whatsapp";
-  digitCount?: number;
-}
-```
-
-### SMSResponse
-
-```typescript
-interface SMSResponse {
-  message: string;
-  smsId: string;
-  remainingCredit: number;
-  verificationCode?: string; // Included in response
-}
-```
-
-### SMSTrackingResponse
-
-```typescript
-interface SMSTrackingResponse {
-  status: "pending" | "delivered" | "failed";
-  phoneNumber: string;
-  smsId: string;
-  cost: number;
-}
-```
+1. **Error Handling**: Always implement proper error handling to catch and handle specific error types.
+2. **Verification Codes**: Never send verification codes back to the client. Store them securely server-side.
+3. **Provider Selection**: Use 'auto' provider for verification codes unless you have a specific reason not to.
+4. **Custom Messages**: Always use an approved sender ID when sending custom messages.
+5. **Environment Variables**: Store your API key in environment variables, never hardcode it.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
@@ -226,4 +312,7 @@ MIT
 
 ## Support
 
-For support, please [create an issue](https://github.com/YadaCoder/otpiq/issues) on GitHub.
+For support:
+
+1. [Create an issue](https://github.com/YourUsername/otpiq/issues) on GitHub
+2. Contact support at info@otpiq.com
