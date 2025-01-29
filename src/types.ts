@@ -3,13 +3,15 @@ export interface OTPiqConfig {
 }
 
 export type SMSProvider = "auto" | "sms" | "whatsapp";
-export type SMSType = "verification";
+export type SMSType = "verification" | "custom";
 export type SMSStatus = "pending" | "delivered" | "failed";
 
 export interface SendSMSOptions {
   phoneNumber: string;
-  verificationCode?: string | number;
   smsType: SMSType;
+  verificationCode?: string | number;
+  customMessage?: string;
+  senderId?: string;
   provider?: SMSProvider;
   digitCount?: number;
 }
@@ -30,6 +32,17 @@ export interface SMSTrackingResponse {
   phoneNumber: string;
   smsId: string;
   cost: number;
+}
+
+export interface SenderId {
+  id: string;
+  senderId: string;
+  status: "accepted" | "pending";
+  createdAt: string;
+}
+
+export interface SenderIdsResponse {
+  senderIds: SenderId[];
 }
 
 export interface APIInsufficientCreditError {
