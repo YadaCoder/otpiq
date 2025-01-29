@@ -25,20 +25,40 @@ class OTPiqClient {
     async getProjectInfo() {
         return this.request("/info");
     }
+    async getSenderIds() {
+        return this.request("/sender-ids");
+    }
     async sendSMS(options) {
         var _a;
-        const verificationCode = ((_a = options.verificationCode) === null || _a === void 0 ? void 0 : _a.toString()) ||
-            (0, utils_1.generateRandomCode)(options.digitCount);
-        const response = await this.request("/sms", {
-            method: "POST",
-            body: JSON.stringify({
-                phoneNumber: options.phoneNumber,
-                smsType: options.smsType,
-                verificationCode,
-                provider: options.provider || "auto",
-            }),
-        });
-        return Object.assign(Object.assign({}, response), { verificationCode });
+        let requestBody = {
+            phoneNumber: options.phoneNumber,
+            smsType: options.smsType,
+            provider: options.provider || "auto",
+        };
+        // Handle verification type SMS
+        if (options.smsType === "verification") {
+            const verificationCode = ((_a = options.verificationCode) === null || _a === void 0 ? void 0 : _a.toString()) ||
+                (0, utils_1.generateRandomCode)(options.digitCount);
+            requestBody.verificationCode = verificationCode;
+            const response = await this.request("/sms", {
+                method: "POST",
+                body: JSON.stringify(requestBody),
+            });
+            return Object.assign(Object.assign({}, response), { verificationCode });
+        }
+        // Handle custom type SMS
+        if (options.smsType === "custom") {
+            if (!options.customMessage) {
+                throw new errors_1.OTPiqError("customMessage is required for custom SMS type");
+            }
+            requestBody = Object.assign(Object.assign({}, requestBody), { customMessage: options.customMessage, provider: "sms", senderId: options.senderId });
+            const response = await this.request("/sms", {
+                method: "POST",
+                body: JSON.stringify(requestBody),
+            });
+            return response;
+        }
+        throw new errors_1.OTPiqError(`Invalid smsType: ${options.smsType}`);
     }
     async trackSMS(smsId) {
         return this.request(`/sms/track/${smsId}`);
