@@ -314,5 +314,5 @@ MIT
 
 For support:
 
-1. [Create an issue](https://github.com/YourUsername/otpiq/issues) on GitHub
+1. [Create an issue](https://github.com/yadacoder/otpiq/issues) on GitHub
 2. Contact support at info@otpiq.com
