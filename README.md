@@ -10,7 +10,7 @@ A TypeScript/JavaScript client for the OTPiq SMS service. This package provides 
 - 📱 SMS verification code sending
 - 💬 Custom message support with sender IDs
 - 🎲 Automatic or custom verification code generation
-- ✨ WhatsApp message support
+- ✨ WhatsApp & Telegram message support
 - ✅ Full TypeScript support
 - 🔄 SMS status tracking
 - 💳 Credit management
@@ -173,7 +173,7 @@ const response = await client.sendSMS({
   phoneNumber: "9647701234567",
   smsType: "verification",
   digitCount: 6, // Optional
-  provider: "auto", // Optional: 'auto' | 'sms' | 'whatsapp'
+  provider: "auto", // Optional: 'auto' | 'sms' | 'whatsapp' | 'telegram'
 });
 
 // Verification SMS with custom code
