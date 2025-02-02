@@ -2,7 +2,7 @@ export interface OTPiqConfig {
   apiKey: string;
 }
 
-export type SMSProvider = "auto" | "sms" | "whatsapp";
+export type SMSProvider = "auto" | "sms" | "whatsapp" | "telegram";
 export type SMSType = "verification" | "custom";
 export type SMSStatus = "pending" | "delivered" | "failed";
 
