@@ -2,7 +2,7 @@
 
 A TypeScript/JavaScript client for the OTPiq SMS service. This package provides a clean and type-safe way to interact with the OTPiq API, supporting verification codes, custom messages, sender IDs, and message tracking.
 
-[![npm version](https://badge.fury.io/js/otpiq-client.svg)](https://www.npmjs.com/package/otpiq-client)
+[![npm version](https://badge.fury.io/js/otpiq.svg)](https://www.npmjs.com/package/otpiq)
 [![TypeScript](https://badges.frapsoft.com/typescript/code/typescript.svg?v=101)](https://github.com/ellerbrock/typescript-badges/)
 
 ## Features
@@ -314,9 +314,9 @@ interface SenderId {
 The package includes built-in error classes for common API errors:
 
 ```typescript
-import { 
-  OTPiqError, 
-  InsufficientCreditError, 
+import {
+  OTPiqError,
+  InsufficientCreditError,
   RateLimitError,
   SpendingThresholdError,
   SenderIdError,
@@ -367,7 +367,7 @@ try {
 
 1. **Error Handling**: Always implement proper error handling to catch and handle specific error types.
 2. **Verification Codes**: Never send verification codes back to the client. Store them securely server-side.
-3. **Provider Selection**: 
+3. **Provider Selection**:
    - Use 'auto' provider for verification codes to let the system choose the best option
    - Custom messages always use SMS provider (enforced by the API)
    - Use WhatsApp/Telegram for verification codes when targeting specific platforms
