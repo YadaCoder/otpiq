@@ -10,4 +10,17 @@ export declare class OTPiqClient {
         verificationCode?: string;
     }>;
     trackSMS(smsId: string): Promise<SMSTrackingResponse>;
+    sendWhatsApp(options: Omit<SendSMSOptions, "provider">): Promise<SMSResponse & {
+        verificationCode?: string;
+    }>;
+    sendTelegram(options: Omit<SendSMSOptions, "provider">): Promise<SMSResponse & {
+        verificationCode?: string;
+    }>;
+    sendCustomMessage(options: {
+        phoneNumber: string;
+        customMessage: string;
+        senderId: string;
+    }): Promise<SMSResponse>;
+    getSMSStatus(smsId: string): Promise<SMSTrackingResponse>;
+    getCredits(): Promise<number>;
 }
