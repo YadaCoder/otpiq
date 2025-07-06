@@ -1,0 +1,979 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "OTPIQ SMS API",
+    "description": "Enterprise-grade SMS and messaging API for sending verification codes, custom messages, and managing sender IDs. Supports multiple providers including SMS, WhatsApp, and Telegram.\n\n## Features\n\n* **Multi-Provider Support**: Send messages via SMS, WhatsApp, or Telegram\n* **Verification Codes**: Automated OTP delivery with customizable codes\n* **Custom Messages**: Send personalized messages with custom sender IDs\n* **Rate Limiting**: Built-in protection against abuse\n* **Spending Controls**: Configurable spending thresholds and credit management\n* **Real-time Tracking**: Monitor message delivery status\n* **Sender ID Management**: Register and manage custom sender IDs\n\n## Authentication\n\nAll API requests require authentication using your project API key. Include it in the Authorization header:\n\n```\nAuthorization: Bearer sk_live_your_api_key_here\n```\n\n## Support\n\n* **Documentation**: [https://docs.otpiq.com](https://docs.otpiq.com)\n* **Support Email**: info@otpiq.com",
+    "version": "1.0.0",
+    "contact": {
+      "name": "OTPIQ Support",
+      "url": "https://otpiq.com",
+      "email": "info@otpiq.com"
+    },
+    "license": {
+      "name": "Commercial",
+      "url": "https://otpiq.com/terms"
+    }
+  },
+  "externalDocs": {
+    "description": "OTPIQ Documentation",
+    "url": "https://docs.otpiq.com"
+  },
+  "servers": [
+    {
+      "url": "https://api.otpiq.com/api",
+      "description": "Production API"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "API key authentication and project information"
+    },
+    {
+      "name": "SMS",
+      "description": "Send SMS messages, verification codes, and track delivery"
+    },
+    {
+      "name": "Sender IDs",
+      "description": "Manage custom sender IDs for your messages"
+    }
+  ],
+  "paths": {
+    "/info": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Get project information",
+        "description": "Retrieve information about the authenticated project including remaining credits and project details.",
+        "operationId": "getProjectInfo",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectInfo"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Successful response",
+                    "value": {
+                      "projectName": "My SMS Project",
+                      "credit": 15000
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/sender-ids": {
+      "get": {
+        "tags": [
+          "Sender IDs"
+        ],
+        "summary": "Get sender IDs",
+        "description": "Retrieve all sender IDs associated with the authenticated project.",
+        "operationId": "getSenderIds",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sender IDs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SenderIdsResponse"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Successful response",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "_id": "507f1f77bcf86cd799439011",
+                          "senderId": "OTPIQ",
+                          "status": "accepted",
+                          "pricePerSms": {
+                            "korekTelecom": 80,
+                            "asiaCell": 80,
+                            "zainIraq": 80,
+                            "others": 100
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/sms": {
+      "post": {
+        "tags": [
+          "SMS"
+        ],
+        "summary": "Send SMS",
+        "description": "Send an SMS message. Supports both verification codes and custom messages with multiple provider options.",
+        "operationId": "sendSMS",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "SMS request parameters",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendSMSRequest"
+              },
+              "examples": {
+                "verification": {
+                  "summary": "Send verification code",
+                  "value": {
+                    "phoneNumber": "964750123456",
+                    "smsType": "verification",
+                    "verificationCode": "123456",
+                    "provider": "auto"
+                  }
+                },
+                "custom": {
+                  "summary": "Send custom message",
+                  "value": {
+                    "phoneNumber": "964750123456",
+                    "smsType": "custom",
+                    "customMessage": "Your order #12345 has been confirmed. Thank you for your purchase!",
+                    "senderId": "OTPIQ",
+                    "provider": "sms"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SMS sent successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendSMSResponse"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Successful response",
+                    "value": {
+                      "message": "SMS task created successfully",
+                      "smsId": "sms_1234567890abcdef",
+                      "remainingCredit": 14800,
+                      "cost": 200,
+                      "canCover": true,
+                      "paymentType": "prepaid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InsufficientCreditError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SpendingThresholdError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SenderIdError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TrialModeError"
+                    }
+                  ]
+                },
+                "examples": {
+                  "validation": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": "Phone must be a valid number without any spaces or special characters."
+                    }
+                  },
+                  "insufficient_credit": {
+                    "summary": "Insufficient credit",
+                    "value": {
+                      "error": "Insufficient credit, please add more credit",
+                      "yourCredit": 100,
+                      "requiredCredit": 200,
+                      "canCover": false
+                    }
+                  },
+                  "spending_threshold": {
+                    "summary": "Spending threshold exceeded",
+                    "value": {
+                      "error": "Project spending threshold of 10,000 IQD would be exceeded. Current spending: 9,500 IQD",
+                      "currentSpending": 9500,
+                      "spendingThreshold": 10000,
+                      "cost": 200
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                },
+                "examples": {
+                  "rate_limit": {
+                    "summary": "Rate limit exceeded",
+                    "value": {
+                      "message": "Rate limit exceeded. Please try again in 8 minutes. Maximum 10 requests allowed per phone number in 10 minutes.",
+                      "waitMinutes": 8,
+                      "maxRequests": 10,
+                      "timeWindowMinutes": 10
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/sms/track/{smsId}": {
+      "get": {
+        "tags": [
+          "SMS"
+        ],
+        "summary": "Track SMS",
+        "description": "Get the delivery status of a specific SMS message.",
+        "operationId": "trackSMS",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "smsId",
+            "in": "path",
+            "description": "The SMS ID to track",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^sms_[a-zA-Z0-9]+$",
+              "examples": [
+                "sms_1234567890abcdef"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SMS status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SMSTrackingResponse"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Successful response",
+                    "value": {
+                      "smsId": "sms_1234567890abcdef",
+                      "phoneNumber": "964750123456",
+                      "status": "delivered",
+                      "cost": 200
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "SMS not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                },
+                "examples": {
+                  "not_found": {
+                    "summary": "SMS not found",
+                    "value": {
+                      "message": "SMS not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key authentication. Format: `Bearer sk_live_your_api_key_here`"
+      }
+    },
+    "schemas": {
+      "ProjectInfo": {
+        "description": "Project information including remaining credits",
+        "type": "object",
+        "required": [
+          "projectName",
+          "credit"
+        ],
+        "properties": {
+          "projectName": {
+            "type": "string",
+            "description": "Name of the project",
+            "examples": [
+              "My SMS Project"
+            ]
+          },
+          "credit": {
+            "type": "number",
+            "description": "Remaining credit balance in IQD",
+            "minimum": 0,
+            "examples": [
+              15000
+            ]
+          }
+        }
+      },
+      "SenderIdsResponse": {
+        "description": "Response containing sender IDs for the project",
+        "type": "object",
+        "required": [
+          "success",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the request was successful",
+            "examples": [
+              true
+            ]
+          },
+          "data": {
+            "type": "array",
+            "description": "Array of sender IDs",
+            "items": {
+              "$ref": "#/components/schemas/SenderId"
+            }
+          }
+        }
+      },
+      "SenderId": {
+        "description": "Sender ID information",
+        "type": "object",
+        "required": [
+          "_id",
+          "senderId",
+          "status",
+          "pricePerSms"
+        ],
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "Unique identifier for the sender ID",
+            "examples": [
+              "507f1f77bcf86cd799439011"
+            ]
+          },
+          "senderId": {
+            "type": "string",
+            "description": "The sender ID name",
+            "maxLength": 11,
+            "examples": [
+              "OTPIQ"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected"
+            ],
+            "description": "Status of the sender ID approval",
+            "examples": [
+              "accepted"
+            ]
+          },
+          "pricePerSms": {
+            "type": "object",
+            "description": "Pricing per SMS for different carriers",
+            "properties": {
+              "korekTelecom": {
+                "type": "number",
+                "description": "Price for Korek Telecom",
+                "minimum": 0,
+                "examples": [
+                  80
+                ]
+              },
+              "asiaCell": {
+                "type": "number",
+                "description": "Price for AsiaCell",
+                "minimum": 0,
+                "examples": [
+                  80
+                ]
+              },
+              "zainIraq": {
+                "type": "number",
+                "description": "Price for Zain Iraq",
+                "minimum": 0,
+                "examples": [
+                  80
+                ]
+              },
+              "others": {
+                "type": "number",
+                "description": "Price for other carriers",
+                "minimum": 0,
+                "examples": [
+                  100
+                ]
+              }
+            }
+          }
+        }
+      },
+      "SendSMSRequest": {
+        "description": "Request to send an SMS message",
+        "type": "object",
+        "required": [
+          "phoneNumber",
+          "smsType"
+        ],
+        "properties": {
+          "phoneNumber": {
+            "type": "string",
+            "description": "Phone number in international format without + (e.g., 964750123456)",
+            "pattern": "^[0-9]{10,15}$",
+            "examples": [
+              "964750123456"
+            ]
+          },
+          "smsType": {
+            "type": "string",
+            "enum": [
+              "verification",
+              "custom"
+            ],
+            "description": "Type of SMS to send"
+          },
+          "verificationCode": {
+            "type": "string",
+            "description": "Verification code to send (required when smsType is 'verification')",
+            "minLength": 1,
+            "maxLength": 20,
+            "examples": [
+              "123456"
+            ]
+          },
+          "customMessage": {
+            "type": "string",
+            "description": "Custom message to send (required when smsType is 'custom')",
+            "maxLength": 1000,
+            "examples": [
+              "Your order #12345 has been confirmed. Thank you for your purchase!"
+            ]
+          },
+          "senderId": {
+            "type": "string",
+            "description": "Sender ID to use (required when smsType is 'custom')",
+            "maxLength": 11,
+            "examples": [
+              "OTPIQ"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "sms",
+              "whatsapp",
+              "telegram"
+            ],
+            "description": "Provider to use for sending the message. 'auto' will choose the best provider based on the message type.",
+            "default": "auto",
+            "examples": [
+              "auto"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "smsType": {
+                  "const": "verification"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "verificationCode"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "smsType": {
+                  "const": "custom"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "customMessage",
+                "senderId"
+              ]
+            }
+          }
+        ]
+      },
+      "SendSMSResponse": {
+        "description": "Response after sending an SMS",
+        "type": "object",
+        "required": [
+          "message",
+          "smsId",
+          "remainingCredit",
+          "cost",
+          "canCover",
+          "paymentType"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Success message",
+            "examples": [
+              "SMS task created successfully"
+            ]
+          },
+          "smsId": {
+            "type": "string",
+            "description": "Unique identifier for the SMS message",
+            "pattern": "^sms_[a-zA-Z0-9]+$",
+            "examples": [
+              "sms_1234567890abcdef"
+            ]
+          },
+          "remainingCredit": {
+            "type": "number",
+            "description": "Remaining credit balance after the transaction",
+            "minimum": 0,
+            "examples": [
+              14800
+            ]
+          },
+          "cost": {
+            "type": "number",
+            "description": "Cost of the SMS in IQD",
+            "minimum": 0,
+            "examples": [
+              200
+            ]
+          },
+          "canCover": {
+            "type": "boolean",
+            "description": "Whether the user has sufficient credit to cover the cost",
+            "examples": [
+              true
+            ]
+          },
+          "paymentType": {
+            "type": "string",
+            "enum": [
+              "prepaid",
+              "postpaid"
+            ],
+            "description": "Payment type of the user account",
+            "examples": [
+              "prepaid"
+            ]
+          }
+        }
+      },
+      "SMSTrackingResponse": {
+        "description": "SMS tracking information",
+        "type": "object",
+        "required": [
+          "smsId",
+          "phoneNumber",
+          "status",
+          "cost"
+        ],
+        "properties": {
+          "smsId": {
+            "type": "string",
+            "description": "Unique identifier for the SMS message",
+            "pattern": "^sms_[a-zA-Z0-9]+$",
+            "examples": [
+              "sms_1234567890abcdef"
+            ]
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "Phone number the SMS was sent to",
+            "examples": [
+              "964750123456"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "delivered",
+              "failed",
+              "expired"
+            ],
+            "description": "Current status of the SMS message",
+            "examples": [
+              "delivered"
+            ]
+          },
+          "cost": {
+            "type": "number",
+            "description": "Cost of the SMS in IQD",
+            "minimum": 0,
+            "examples": [
+              200
+            ]
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Validation error response",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Validation error message",
+            "examples": [
+              "Phone must be a valid number without any spaces or special characters.",
+              "Invalid sms type.",
+              "When smsType is custom, you must provide (customMessage)",
+              "Verification code must be between 1 and 20 characters long.",
+              "When smsType is custom, you must provide (senderId)",
+              "Invalid provider."
+            ]
+          }
+        }
+      },
+      "InsufficientCreditError": {
+        "description": "Insufficient credit error response",
+        "type": "object",
+        "required": [
+          "error",
+          "yourCredit",
+          "requiredCredit",
+          "canCover"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "examples": [
+              "Insufficient credit, please add more credit"
+            ]
+          },
+          "yourCredit": {
+            "type": "number",
+            "description": "Current credit balance",
+            "minimum": 0,
+            "examples": [
+              100
+            ]
+          },
+          "requiredCredit": {
+            "type": "number",
+            "description": "Credit required for the transaction",
+            "minimum": 0,
+            "examples": [
+              200
+            ]
+          },
+          "canCover": {
+            "type": "boolean",
+            "description": "Whether the user can cover the cost",
+            "examples": [
+              false
+            ]
+          }
+        }
+      },
+      "SpendingThresholdError": {
+        "description": "Spending threshold exceeded error response",
+        "type": "object",
+        "required": [
+          "error",
+          "currentSpending",
+          "spendingThreshold",
+          "cost"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "examples": [
+              "Project spending threshold of 10,000 IQD would be exceeded. Current spending: 9,500 IQD"
+            ]
+          },
+          "currentSpending": {
+            "type": "number",
+            "description": "Current spending for the project",
+            "minimum": 0,
+            "examples": [
+              9500
+            ]
+          },
+          "spendingThreshold": {
+            "type": "number",
+            "description": "Spending threshold for the project",
+            "minimum": 0,
+            "examples": [
+              10000
+            ]
+          },
+          "cost": {
+            "type": "number",
+            "description": "Cost of the transaction",
+            "minimum": 0,
+            "examples": [
+              200
+            ]
+          }
+        }
+      },
+      "SenderIdError": {
+        "description": "Sender ID related error response",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "examples": [
+              "SenderID not found",
+              "SenderID is not accepted, please wait for it to be accepted"
+            ]
+          }
+        }
+      },
+      "TrialModeError": {
+        "description": "Trial mode restriction error response",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "examples": [
+              "Account is in trial mode, you can only send sms to your own phone number for verification, add credit to send to other numbers"
+            ]
+          }
+        }
+      },
+      "RateLimitError": {
+        "description": "Rate limit exceeded error response",
+        "type": "object",
+        "required": [
+          "message",
+          "waitMinutes",
+          "maxRequests",
+          "timeWindowMinutes"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Rate limit error message",
+            "examples": [
+              "Rate limit exceeded. Please try again in 8 minutes. Maximum 10 requests allowed per phone number in 10 minutes."
+            ]
+          },
+          "waitMinutes": {
+            "type": "number",
+            "description": "Minutes to wait before retrying",
+            "minimum": 0,
+            "examples": [
+              8
+            ]
+          },
+          "maxRequests": {
+            "type": "number",
+            "description": "Maximum requests allowed",
+            "minimum": 1,
+            "examples": [
+              10
+            ]
+          },
+          "timeWindowMinutes": {
+            "type": "number",
+            "description": "Time window in minutes",
+            "minimum": 1,
+            "examples": [
+              10
+            ]
+          }
+        }
+      },
+      "UnauthorizedError": {
+        "description": "Unauthorized error response",
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Unauthorized error message",
+            "examples": [
+              "Unauthorized, please use your project api key"
+            ]
+          }
+        }
+      },
+      "NotFoundError": {
+        "description": "Not found error response",
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Not found error message",
+            "examples": [
+              "SMS not found"
+            ]
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Internal server error response",
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Internal server error message",
+            "examples": [
+              "Internal server error"
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/UnauthorizedError"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not Found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/NotFoundError"
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Internal Server Error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/InternalServerError"
+            }
+          }
+        }
+      }
+    }
+  }
+}

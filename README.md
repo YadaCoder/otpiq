@@ -7,15 +7,18 @@ A TypeScript/JavaScript client for the OTPiq SMS service. This package provides 
 
 ## Features
 
-- 📱 SMS verification code sending
+- 📱 SMS verification code sending with auto-generation
 - 💬 Custom message support with sender IDs
 - 🎲 Automatic or custom verification code generation
-- ✨ WhatsApp & Telegram message support
-- ✅ Full TypeScript support
-- 🔄 SMS status tracking
-- 💳 Credit management
-- ⚡ Promise-based API
-- 🛡️ Comprehensive error handling
+- ✨ Multi-provider support: SMS, WhatsApp, Telegram
+- ✅ Full TypeScript support with strict typing
+- 🔄 Real-time SMS delivery tracking
+- 💳 Credit balance and spending management
+- ⚡ Promise-based API with async/await
+- 🛡️ Comprehensive error handling with specific error types
+- 📊 Carrier-specific pricing information
+- 🚦 Built-in rate limit handling
+- 💰 Spending threshold protection
 
 ## Installation
 
@@ -45,6 +48,8 @@ const response = await client.sendSMS({
 
 console.log("Generated code:", response.verificationCode);
 console.log("SMS ID:", response.smsId);
+console.log("Cost:", response.cost, "IQD");
+console.log("Remaining credit:", response.remainingCredit, "IQD");
 
 // Send custom message with sender ID
 const customResponse = await client.sendSMS({
@@ -102,7 +107,7 @@ Retrieve all your approved sender IDs:
 
 ```typescript
 const senderIds = await client.getSenderIds();
-console.log("Available sender IDs:", senderIds.senderIds);
+console.log("Available sender IDs:", senderIds.data);
 ```
 
 ## Next.js Example
@@ -184,13 +189,44 @@ const response = await client.sendSMS({
   provider: "whatsapp", // Optional
 });
 
-// Custom message with sender ID
+// Custom message with sender ID (always uses SMS provider)
 const response = await client.sendSMS({
   phoneNumber: "9647701234567",
   smsType: "custom",
   customMessage: "Your message here",
   senderId: "MyBrand",
 });
+```
+
+#### Convenience Methods
+
+```typescript
+// Send via WhatsApp
+const response = await client.sendWhatsApp({
+  phoneNumber: "9647701234567",
+  smsType: "verification",
+  verificationCode: "123456", // Optional
+});
+
+// Send via Telegram
+const response = await client.sendTelegram({
+  phoneNumber: "9647701234567",
+  smsType: "verification",
+});
+
+// Send custom message (simplified method)
+const response = await client.sendCustomMessage({
+  phoneNumber: "9647701234567",
+  customMessage: "Your order is ready for pickup!",
+  senderId: "MyBrand",
+});
+
+// Get just the credit balance
+const credits = await client.getCredits();
+console.log(`Available credits: ${credits} IQD`);
+
+// Alias for trackSMS
+const status = await client.getSMSStatus("sms-1234567890");
 ```
 
 #### Track SMS Status
@@ -213,7 +249,7 @@ console.log("Available credits:", info.credit);
 
 ```typescript
 const senderIds = await client.getSenderIds();
-console.log("Available sender IDs:", senderIds.senderIds);
+console.log("Available sender IDs:", senderIds.data);
 ```
 
 ### Type Definitions
@@ -227,7 +263,7 @@ interface SendSMSOptions {
   verificationCode?: string | number;
   customMessage?: string;
   senderId?: string;
-  provider?: "auto" | "sms" | "whatsapp";
+  provider?: "auto" | "sms" | "whatsapp" | "telegram";
   digitCount?: number;
 }
 ```
@@ -239,6 +275,9 @@ interface SMSResponse {
   message: string;
   smsId: string;
   remainingCredit: number;
+  cost: number;
+  canCover: boolean;
+  paymentType: "prepaid" | "postpaid";
   verificationCode?: string; // Only included for verification SMS
 }
 ```
@@ -247,7 +286,7 @@ interface SMSResponse {
 
 ```typescript
 interface SMSTrackingResponse {
-  status: "pending" | "delivered" | "failed";
+  status: "pending" | "sent" | "delivered" | "failed" | "expired";
   phoneNumber: string;
   smsId: string;
   cost: number;
@@ -258,10 +297,15 @@ interface SMSTrackingResponse {
 
 ```typescript
 interface SenderId {
-  id: string;
+  _id: string;
   senderId: string;
-  status: "accepted" | "pending";
-  createdAt: string;
+  status: "accepted" | "pending" | "rejected";
+  pricePerSms: {
+    korekTelecom: number;
+    asiaCell: number;
+    zainIraq: number;
+    others: number;
+  };
 }
 ```
 
@@ -270,7 +314,17 @@ interface SenderId {
 The package includes built-in error classes for common API errors:
 
 ```typescript
-import { OTPiqError, InsufficientCreditError, RateLimitError } from "otpiq";
+import { 
+  OTPiqError, 
+  InsufficientCreditError, 
+  RateLimitError,
+  SpendingThresholdError,
+  SenderIdError,
+  TrialModeError,
+  ValidationError,
+  NotFoundError,
+  UnauthorizedError
+} from "otpiq";
 
 try {
   await client.sendSMS({
@@ -281,13 +335,28 @@ try {
   if (error instanceof InsufficientCreditError) {
     console.log(
       `Need more credits! Required: ${error.requiredCredit}, ` +
-        `Available: ${error.yourCredit}`
+        `Available: ${error.yourCredit}, Can cover: ${error.canCover}`
     );
   } else if (error instanceof RateLimitError) {
     console.log(
       `Rate limit exceeded. Try again in ${error.waitMinutes} minutes. ` +
         `Limit: ${error.maxRequests} requests per ${error.timeWindowMinutes} minutes`
     );
+  } else if (error instanceof SpendingThresholdError) {
+    console.log(
+      `Spending threshold exceeded! Current: ${error.currentSpending}, ` +
+        `Threshold: ${error.spendingThreshold}, Transaction cost: ${error.cost}`
+    );
+  } else if (error instanceof TrialModeError) {
+    console.log("Trial mode: Can only send to your own phone number");
+  } else if (error instanceof SenderIdError) {
+    console.log("Sender ID error:", error.message);
+  } else if (error instanceof ValidationError) {
+    console.log("Validation error:", error.message);
+  } else if (error instanceof NotFoundError) {
+    console.log("Not found:", error.message);
+  } else if (error instanceof UnauthorizedError) {
+    console.log("Unauthorized:", error.message);
   } else if (error instanceof OTPiqError) {
     console.log("API Error:", error.message);
   }
@@ -298,9 +367,14 @@ try {
 
 1. **Error Handling**: Always implement proper error handling to catch and handle specific error types.
 2. **Verification Codes**: Never send verification codes back to the client. Store them securely server-side.
-3. **Provider Selection**: Use 'auto' provider for verification codes unless you have a specific reason not to.
+3. **Provider Selection**: 
+   - Use 'auto' provider for verification codes to let the system choose the best option
+   - Custom messages always use SMS provider (enforced by the API)
+   - Use WhatsApp/Telegram for verification codes when targeting specific platforms
 4. **Custom Messages**: Always use an approved sender ID when sending custom messages.
 5. **Environment Variables**: Store your API key in environment variables, never hardcode it.
+6. **Rate Limiting**: Implement client-side rate limiting to avoid hitting API limits.
+7. **Credit Monitoring**: Regularly check credit balance and implement alerts for low balance.
 
 ## Contributing
 
