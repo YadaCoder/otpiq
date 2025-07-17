@@ -6,6 +6,12 @@ export type SMSProvider = "auto" | "sms" | "whatsapp" | "telegram";
 export type SMSType = "verification" | "custom";
 export type SMSStatus = "pending" | "sent" | "delivered" | "failed" | "expired";
 
+export interface DeliveryReport {
+  webhookUrl: string;
+  deliveryReportType?: "all" | "final";
+  webhookSecret?: string;
+}
+
 export interface SendSMSOptions {
   phoneNumber: string;
   smsType: SMSType;
@@ -14,6 +20,7 @@ export interface SendSMSOptions {
   senderId?: string;
   provider?: SMSProvider;
   digitCount?: number;
+  deliveryReport?: DeliveryReport;
 }
 
 export interface ProjectInfo {
@@ -95,4 +102,14 @@ export interface APINotFoundError {
 
 export interface APIUnauthorizedError {
   message: string;
+}
+
+export interface WebhookPayload {
+  smsId: string;
+  deliveryReportType: "all" | "final";
+  isFinal: boolean;
+  channel: "sms" | "whatsapp" | "telegram";
+  status: "sent" | "delivered" | "failed";
+  senderId?: string;
+  reason?: string;
 }

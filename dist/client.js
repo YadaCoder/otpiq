@@ -63,6 +63,10 @@ class OTPiqClient {
             smsType: options.smsType,
             provider: options.provider || "auto",
         };
+        // Add webhook configuration if provided
+        if (options.deliveryReport) {
+            requestBody.deliveryReport = options.deliveryReport;
+        }
         // Handle verification type SMS
         if (options.smsType === "verification") {
             const verificationCode = ((_a = options.verificationCode) === null || _a === void 0 ? void 0 : _a.toString()) ||

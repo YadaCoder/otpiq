@@ -19,6 +19,7 @@ A TypeScript/JavaScript client for the OTPiq SMS service. This package provides 
 - 📊 Carrier-specific pricing information
 - 🚦 Built-in rate limit handling
 - 💰 Spending threshold protection
+- 🔔 Webhook support for real-time delivery notifications
 
 ## Installation
 
@@ -265,6 +266,17 @@ interface SendSMSOptions {
   senderId?: string;
   provider?: "auto" | "sms" | "whatsapp" | "telegram";
   digitCount?: number;
+  deliveryReport?: DeliveryReport;
+}
+```
+
+#### DeliveryReport
+
+```typescript
+interface DeliveryReport {
+  webhookUrl: string;
+  deliveryReportType?: "all" | "final";
+  webhookSecret?: string;
 }
 ```
 
@@ -308,6 +320,83 @@ interface SenderId {
   };
 }
 ```
+
+## Webhooks
+
+Configure webhooks to receive real-time delivery status updates for your messages:
+
+### Basic Webhook Setup
+
+```typescript
+const response = await client.sendSMS({
+  phoneNumber: "9647701234567",
+  smsType: "verification",
+  deliveryReport: {
+    webhookUrl: "https://your-app.com/webhooks/sms-status",
+    deliveryReportType: "all", // or "final" for final status only
+    webhookSecret: "your_secret_123" // optional, for security
+  }
+});
+```
+
+### Webhook Payload Structure
+
+Your webhook endpoint will receive POST requests with the following payload:
+
+```typescript
+interface WebhookPayload {
+  smsId: string;
+  deliveryReportType: "all" | "final";
+  isFinal: boolean;
+  channel: "sms" | "whatsapp" | "telegram";
+  status: "sent" | "delivered" | "failed";
+  senderId?: string; // Only for SMS with custom sender IDs
+  reason?: string; // Only when status is 'failed'
+}
+```
+
+### Example Webhook Implementation (Express.js)
+
+```typescript
+app.post('/webhooks/sms-status', (req, res) => {
+  const payload: WebhookPayload = req.body;
+  const webhookSecret = req.headers['x-otpiq-webhook-secret'];
+  
+  // Verify webhook secret if configured
+  if (webhookSecret !== process.env.WEBHOOK_SECRET) {
+    return res.status(401).send('Unauthorized');
+  }
+  
+  // Process the webhook
+  console.log(`SMS ${payload.smsId} status: ${payload.status}`);
+  
+  if (payload.status === 'delivered') {
+    // Handle successful delivery
+  } else if (payload.status === 'failed') {
+    console.error(`Delivery failed: ${payload.reason}`);
+    // Handle failure
+  }
+  
+  // Always respond quickly (within 10 seconds)
+  res.status(200).send('OK');
+});
+```
+
+### Webhook Configuration Options
+
+- **webhookUrl**: HTTPS URL to receive status updates (required)
+- **deliveryReportType**: 
+  - `"all"` - Receive all status updates (sent, delivered, failed)
+  - `"final"` - Receive only final status (delivered or failed)
+- **webhookSecret**: Optional secret for webhook authentication
+
+### Security Best Practices
+
+1. Always use HTTPS for webhook URLs
+2. Implement webhook secret validation
+3. Respond within 10 seconds to avoid timeouts
+4. Implement idempotency to handle duplicate webhooks
+5. Log all webhook requests for debugging
 
 ## Error Handling
 
