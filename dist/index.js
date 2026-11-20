@@ -18,3 +18,4 @@ __exportStar(require("./client"), exports);
 __exportStar(require("./types"), exports);
 __exportStar(require("./errors"), exports);
 __exportStar(require("./utils"), exports);
+__exportStar(require("./webhooks"), exports);

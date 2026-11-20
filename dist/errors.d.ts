@@ -36,3 +36,7 @@ export declare class NotFoundError extends OTPiqError {
 export declare class UnauthorizedError extends OTPiqError {
     constructor(message: string);
 }
+/** Returned when the request IP is not on the project's allowlist, or the key is not permitted to do this. */
+export declare class ForbiddenError extends OTPiqError {
+    constructor(message: string, response?: unknown);
+}

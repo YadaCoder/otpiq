@@ -88,3 +88,11 @@ export class UnauthorizedError extends OTPiqError {
     this.name = "UnauthorizedError";
   }
 }
+
+/** Returned when the request IP is not on the project's allowlist, or the key is not permitted to do this. */
+export class ForbiddenError extends OTPiqError {
+  constructor(message: string, response?: unknown) {
+    super(message, 403, response);
+    this.name = "ForbiddenError";
+  }
+}

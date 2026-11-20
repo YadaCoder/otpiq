@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UnauthorizedError = exports.NotFoundError = exports.ValidationError = exports.TrialModeError = exports.SenderIdError = exports.SpendingThresholdError = exports.RateLimitError = exports.InsufficientCreditError = exports.OTPiqError = void 0;
+exports.ForbiddenError = exports.UnauthorizedError = exports.NotFoundError = exports.ValidationError = exports.TrialModeError = exports.SenderIdError = exports.SpendingThresholdError = exports.RateLimitError = exports.InsufficientCreditError = exports.OTPiqError = void 0;
 class OTPiqError extends Error {
     constructor(message, statusCode, response) {
         super(message);
@@ -75,3 +75,11 @@ class UnauthorizedError extends OTPiqError {
     }
 }
 exports.UnauthorizedError = UnauthorizedError;
+/** Returned when the request IP is not on the project's allowlist, or the key is not permitted to do this. */
+class ForbiddenError extends OTPiqError {
+    constructor(message, response) {
+        super(message, 403, response);
+        this.name = "ForbiddenError";
+    }
+}
+exports.ForbiddenError = ForbiddenError;

@@ -1,481 +1,330 @@
-# OTPiq Client
+# otpiq
 
-A TypeScript/JavaScript client for the OTPiq SMS service. This package provides a clean and type-safe way to interact with the OTPiq API, supporting verification codes, custom messages, sender IDs, and message tracking.
+[![npm version](https://img.shields.io/npm/v/otpiq.svg)](https://www.npmjs.com/package/otpiq)
+[![license](https://img.shields.io/npm/l/otpiq.svg)](LICENSE)
 
-[![npm version](https://badge.fury.io/js/otpiq.svg)](https://www.npmjs.com/package/otpiq)
-[![TypeScript](https://badges.frapsoft.com/typescript/code/typescript.svg?v=101)](https://github.com/ellerbrock/typescript-badges/)
+TypeScript client for the [OTPiq](https://otpiq.com) messaging API. Send verification codes and messages over SMS, WhatsApp and Telegram, track delivery, and run WhatsApp campaigns.
 
-## Features
+The API itself is documented at [docs.otpiq.com](https://docs.otpiq.com).
 
-- 📱 SMS verification code sending with auto-generation
-- 💬 Custom message support with sender IDs
-- 🎲 Automatic or custom verification code generation
-- ✨ Multi-provider support: SMS, WhatsApp, Telegram
-- ✅ Full TypeScript support with strict typing
-- 🔄 Real-time SMS delivery tracking
-- 💳 Credit balance and spending management
-- ⚡ Promise-based API with async/await
-- 🛡️ Comprehensive error handling with specific error types
-- 📊 Carrier-specific pricing information
-- 🚦 Built-in rate limit handling
-- 💰 Spending threshold protection
-- 🔔 Webhook support for real-time delivery notifications
-
-## Installation
+## Install
 
 ```bash
 npm install otpiq
-# or
-yarn add otpiq
-# or
-pnpm add otpiq
 ```
 
-## Quick Start
+Requires Node.js 20 or later. The package has no runtime dependencies; it uses the built-in `fetch` and Web Crypto.
+
+## Quick start
 
 ```typescript
 import { OTPiqClient } from "otpiq";
 
-// Initialize the client
-const client = new OTPiqClient({
-  apiKey: "your_api_key_here",
-});
+const client = new OTPiqClient({ apiKey: process.env.OTPIQ_API_KEY! });
 
-// Send verification SMS with auto-generated code
-const response = await client.sendSMS({
-  phoneNumber: "9647701234567",
+const result = await client.sendSMS({
+  phoneNumber: "9647501234567",
   smsType: "verification",
 });
 
-console.log("Generated code:", response.verificationCode);
-console.log("SMS ID:", response.smsId);
-console.log("Cost:", response.cost, "IQD");
-console.log("Remaining credit:", response.remainingCredit, "IQD");
+console.log(result.verificationCode); // the code that was sent, e.g. "481920"
+console.log(result.smsId, result.cost, result.remainingCredit);
+```
 
-// Send custom message with sender ID
-const customResponse = await client.sendSMS({
-  phoneNumber: "9647701234567",
-  smsType: "custom",
-  customMessage: "Welcome to our service!",
+Phone numbers are in international format, digits only, without a leading `+`.
+
+Keep the API key on the server. Store `verificationCode` yourself and compare it with what the user enters; the API does not check codes for you.
+
+## Sending messages
+
+### Verification codes
+
+A code is generated when you don't pass one. Use `digitCount` to change its length (default 6), or `verificationCode` to send your own.
+
+```typescript
+await client.sendSMS({
+  phoneNumber: "9647501234567",
+  smsType: "verification",
+  verificationCode: "482910",
+  provider: "whatsapp-sms",
   senderId: "MyBrand",
 });
 ```
 
-## Handling Verification Codes
+### Providers
 
-### Auto-generated Codes
+`provider` picks the channel, or a route that falls back from one channel to the next.
 
-When no verification code is provided, the client automatically generates one:
+| Provider | Behaviour |
+| --- | --- |
+| `auto` | OTPiq chooses the channel. Default for verification codes. |
+| `sms` | SMS only. |
+| `whatsapp` | WhatsApp only. |
+| `telegram` | Telegram only. |
+| `whatsapp-sms` | WhatsApp, then SMS. |
+| `telegram-sms` | Telegram, then SMS. |
+| `whatsapp-telegram-sms` | WhatsApp, then Telegram, then SMS. |
 
-```typescript
-const response = await client.sendSMS({
-  phoneNumber: "9647701234567",
-  smsType: "verification",
-  digitCount: 6, // Optional: customize length (default: 6)
-});
+`client.sendWhatsApp(options)` and `client.sendTelegram(options)` are shortcuts that set the provider for you.
 
-const generatedCode = response.verificationCode;
-```
-
-### Custom Verification Codes
-
-You can provide your own verification code:
+### Custom messages
 
 ```typescript
-const response = await client.sendSMS({
-  phoneNumber: "9647701234567",
-  smsType: "verification",
-  verificationCode: "123456",
-});
-```
-
-## Sending Custom Messages
-
-Custom messages require a sender ID and will automatically use the SMS provider:
-
-```typescript
-const response = await client.sendSMS({
-  phoneNumber: "9647701234567",
-  smsType: "custom",
-  customMessage: "Your appointment is confirmed for tomorrow at 2 PM",
+await client.sendCustomMessage({
+  phoneNumber: "9647501234567",
+  customMessage: "Your order A-1042 is ready for pickup.",
   senderId: "MyBrand",
 });
 ```
 
-## Managing Sender IDs
+Custom messages go out over SMS unless you call `sendSMS` with `smsType: "custom"` and a different `provider`. Messages can be up to 1000 characters.
 
-Retrieve all your approved sender IDs:
+### WhatsApp templates
 
-```typescript
-const senderIds = await client.getSenderIds();
-console.log("Available sender IDs:", senderIds.data);
-```
-
-## Next.js Example
-
-Here's a complete Next.js API route implementation:
+Send an approved template from your own connected WhatsApp Business account. The account ID, phone ID and template names come from `getWhatsAppResources()`.
 
 ```typescript
-// pages/api/send-verification.ts
-import { OTPiqClient } from "otpiq";
-import type { NextApiRequest, NextApiResponse } from "next";
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
-  }
-
-  const client = new OTPiqClient({
-    apiKey: process.env.OTPIQ_API_KEY!,
-  });
-
-  try {
-    const response = await client.sendSMS({
-      phoneNumber: req.body.phoneNumber,
-      smsType: "verification",
-    });
-
-    // Store the code securely (e.g., in your database or session)
-    await storeVerificationCode({
-      phoneNumber: req.body.phoneNumber,
-      code: response.verificationCode,
-      smsId: response.smsId,
-    });
-
-    res.status(200).json({
-      message: "Verification code sent",
-      smsId: response.smsId,
-    });
-  } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "An unknown error occurred" });
-    }
-  }
-}
-```
-
-## API Reference
-
-### Initialization
-
-```typescript
-const client = new OTPiqClient({
-  apiKey: "your_api_key_here",
+await client.sendWhatsAppTemplate({
+  phoneNumber: "9647501234567",
+  templateName: "order_update",
+  whatsappAccountId: "68c46fecc504cdcec8fb3ef2",
+  whatsappPhoneId: "68c46ff3c504cdcec8fb3f5e",
+  templateParameters: {
+    body: { "1": "A-1042" },
+  },
 });
 ```
 
-### Methods
-
-#### Send SMS
+## Tracking delivery
 
 ```typescript
-// Verification SMS with auto-generated code
-const response = await client.sendSMS({
-  phoneNumber: "9647701234567",
-  smsType: "verification",
-  digitCount: 6, // Optional
-  provider: "auto", // Optional: 'auto' | 'sms' | 'whatsapp' | 'telegram'
-});
+const status = await client.trackSMS("sms-1234567890abcdef12345678");
 
-// Verification SMS with custom code
-const response = await client.sendSMS({
-  phoneNumber: "9647701234567",
-  smsType: "verification",
-  verificationCode: "123456",
-  provider: "whatsapp", // Optional
-});
-
-// Custom message with sender ID (always uses SMS provider)
-const response = await client.sendSMS({
-  phoneNumber: "9647701234567",
-  smsType: "custom",
-  customMessage: "Your message here",
-  senderId: "MyBrand",
-});
-```
-
-#### Convenience Methods
-
-```typescript
-// Send via WhatsApp
-const response = await client.sendWhatsApp({
-  phoneNumber: "9647701234567",
-  smsType: "verification",
-  verificationCode: "123456", // Optional
-});
-
-// Send via Telegram
-const response = await client.sendTelegram({
-  phoneNumber: "9647701234567",
-  smsType: "verification",
-});
-
-// Send custom message (simplified method)
-const response = await client.sendCustomMessage({
-  phoneNumber: "9647701234567",
-  customMessage: "Your order is ready for pickup!",
-  senderId: "MyBrand",
-});
-
-// Get just the credit balance
-const credits = await client.getCredits();
-console.log(`Available credits: ${credits} IQD`);
-
-// Alias for trackSMS
-const status = await client.getSMSStatus("sms-1234567890");
-```
-
-#### Track SMS Status
-
-```typescript
-const status = await client.trackSMS("sms-1234567890");
-console.log("Delivery status:", status.status);
-console.log("Cost:", status.cost);
-```
-
-#### Get Project Info
-
-```typescript
-const info = await client.getProjectInfo();
-console.log("Project name:", info.projectName);
-console.log("Available credits:", info.credit);
-```
-
-#### Get Sender IDs
-
-```typescript
-const senderIds = await client.getSenderIds();
-console.log("Available sender IDs:", senderIds.data);
-```
-
-### Type Definitions
-
-#### SendSMSOptions
-
-```typescript
-interface SendSMSOptions {
-  phoneNumber: string;
-  smsType: "verification" | "custom";
-  verificationCode?: string | number;
-  customMessage?: string;
-  senderId?: string;
-  provider?: "auto" | "sms" | "whatsapp" | "telegram";
-  digitCount?: number;
-  deliveryReport?: DeliveryReport;
-}
-```
-
-#### DeliveryReport
-
-```typescript
-interface DeliveryReport {
-  webhookUrl: string;
-  deliveryReportType?: "all" | "final";
-  webhookSecret?: string;
-}
-```
-
-#### SMSResponse
-
-```typescript
-interface SMSResponse {
-  message: string;
-  smsId: string;
-  remainingCredit: number;
-  cost: number;
-  canCover: boolean;
-  paymentType: "prepaid" | "postpaid";
-  verificationCode?: string; // Only included for verification SMS
-}
-```
-
-#### SMSTrackingResponse
-
-```typescript
-interface SMSTrackingResponse {
-  status: "pending" | "sent" | "delivered" | "failed" | "expired";
-  phoneNumber: string;
-  smsId: string;
-  cost: number;
-}
-```
-
-#### SenderId
-
-```typescript
-interface SenderId {
-  _id: string;
-  senderId: string;
-  status: "accepted" | "pending" | "rejected";
-  pricePerSms: {
-    korekTelecom: number;
-    asiaCell: number;
-    zainIraq: number;
-    others: number;
-  };
-}
+status.status;        // "pending" | "sent" | "delivered" | "read" | "failed"
+status.isFinalStatus; // true once no more attempts will be made
+status.lastChannel;   // "sms" | "whatsapp" | "telegram"
+status.channelFlow;   // [{ channel: "whatsapp", tried: true, success: false, error: "..." }, { channel: "sms", tried: true, success: true }]
 ```
 
 ## Webhooks
 
-Configure webhooks to receive real-time delivery status updates for your messages:
+### Delivery status
 
-### Basic Webhook Setup
+Add `deliveryReport` to any send call to have status updates posted to your server.
 
 ```typescript
-const response = await client.sendSMS({
-  phoneNumber: "9647701234567",
+await client.sendSMS({
+  phoneNumber: "9647501234567",
   smsType: "verification",
   deliveryReport: {
-    webhookUrl: "https://your-app.com/webhooks/sms-status",
-    deliveryReportType: "all", // or "final" for final status only
-    webhookSecret: "your_secret_123" // optional, for security
-  }
+    webhookUrl: "https://example.com/webhooks/otpiq",
+    deliveryReportType: "final", // "all" (default) or "final"
+    webhookSecret: process.env.OTPIQ_WEBHOOK_SECRET,
+  },
 });
 ```
 
-### Webhook Payload Structure
-
-Your webhook endpoint will receive POST requests with the following payload:
+Each request carries your secret in the `X-OTPIQ-Webhook-Secret` header and a JSON body typed as `WebhookPayload`.
 
 ```typescript
-interface WebhookPayload {
-  smsId: string;
-  deliveryReportType: "all" | "final";
-  isFinal: boolean;
-  channel: "sms" | "whatsapp" | "telegram";
-  status: "sent" | "delivered" | "failed";
-  senderId?: string; // Only for SMS with custom sender IDs
-  reason?: string; // Only when status is 'failed'
-}
-```
+import express from "express";
+import type { WebhookPayload } from "otpiq";
 
-### Example Webhook Implementation (Express.js)
+const app = express();
 
-```typescript
-app.post('/webhooks/sms-status', (req, res) => {
+app.post("/webhooks/otpiq", express.json(), (req, res) => {
+  if (req.get("x-otpiq-webhook-secret") !== process.env.OTPIQ_WEBHOOK_SECRET) {
+    return res.sendStatus(401);
+  }
+
   const payload: WebhookPayload = req.body;
-  const webhookSecret = req.headers['x-otpiq-webhook-secret'];
-  
-  // Verify webhook secret if configured
-  if (webhookSecret !== process.env.WEBHOOK_SECRET) {
-    return res.status(401).send('Unauthorized');
+  if (payload.status === "failed") {
+    console.error(payload.smsId, payload.channel, payload.reason);
   }
-  
-  // Process the webhook
-  console.log(`SMS ${payload.smsId} status: ${payload.status}`);
-  
-  if (payload.status === 'delivered') {
-    // Handle successful delivery
-  } else if (payload.status === 'failed') {
-    console.error(`Delivery failed: ${payload.reason}`);
-    // Handle failure
-  }
-  
-  // Always respond quickly (within 10 seconds)
-  res.status(200).send('OK');
+
+  res.sendStatus(200);
 });
 ```
 
-### Webhook Configuration Options
+Respond with a 2xx status within 10 seconds. The same update can arrive more than once, so key your handling on `smsId` and `status`.
 
-- **webhookUrl**: HTTPS URL to receive status updates (required)
-- **deliveryReportType**: 
-  - `"all"` - Receive all status updates (sent, delivered, failed)
-  - `"final"` - Receive only final status (delivered or failed)
-- **webhookSecret**: Optional secret for webhook authentication
+### Inbound WhatsApp messages
 
-### Security Best Practices
-
-1. Always use HTTPS for webhook URLs
-2. Implement webhook secret validation
-3. Respond within 10 seconds to avoid timeouts
-4. Implement idempotency to handle duplicate webhooks
-5. Log all webhook requests for debugging
-
-## Error Handling
-
-The package includes built-in error classes for common API errors:
+Inbound message webhooks are configured per phone number in the dashboard and are signed with HMAC-SHA256. `verifyWebhookSignature` checks the signature against the raw request body.
 
 ```typescript
-import {
-  OTPiqError,
-  InsufficientCreditError,
-  RateLimitError,
-  SpendingThresholdError,
-  SenderIdError,
-  TrialModeError,
-  ValidationError,
-  NotFoundError,
-  UnauthorizedError
-} from "otpiq";
+import express from "express";
+import { verifyWebhookSignature } from "otpiq";
+
+const app = express();
+
+app.post(
+  "/webhooks/whatsapp",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const rawBody = req.body.toString("utf8");
+
+    const valid = await verifyWebhookSignature({
+      secret: process.env.OTPIQ_INBOUND_WEBHOOK_SECRET!,
+      rawBody,
+      timestamp: req.get("x-otpiq-webhook-timestamp"),
+      signature: req.get("x-otpiq-webhook-signature"),
+    });
+    if (!valid) {
+      return res.sendStatus(401);
+    }
+
+    const event = JSON.parse(rawBody);
+    const eventId = req.get("x-otpiq-webhook-event-id"); // use this to skip duplicates
+    // handle the event
+
+    res.sendStatus(200);
+  }
+);
+```
+
+## Project, sender IDs and pricing
+
+```typescript
+const { projectName, credit } = await client.getProjectInfo();
+const balance = await client.getCredits(); // IQD
+
+const { data: senderIds } = await client.getSenderIds();
+// [{ senderId: "MyBrand", status: "accepted", pricePerSms: { korekTelecom, asiaCell, zainIraq, others } }]
+
+const pricing = await client.getInternationalPricing({ countryIso: "TR", limit: 50 });
+// pricing.items: [{ country, network, price }] where price is IQD per SMS segment
+```
+
+## Delivery report exports
+
+Generate a CSV of messages in a date range. Files stay available for 30 days.
+
+```typescript
+const report = await client.generateReport({
+  startDate: new Date("2026-01-01"),
+  endDate: new Date("2026-01-31"),
+  statuses: ["delivered", "failed"], // optional
+  phoneNumbers: ["9647501234567"],   // optional
+});
+
+console.log(report.downloadUrl, report.recordCount);
+
+const reports = await client.listReports({ status: "available" });
+```
+
+## WhatsApp campaigns
+
+Campaigns send one template to many recipients from your own WhatsApp Business account.
+
+```typescript
+// 1. Find the template and phone number to send from
+const { data } = await client.getWhatsAppResources();
+const account = data.businesses[0].whatsappAccounts![0];
+const template = account.templates!.find((t) => t.name === "spring_offer")!;
+const phone = account.phoneNumbers![0];
+
+// 2. Create the campaign
+const { data: campaign } = await client.createCampaign({
+  name: "Spring offer",
+  templateId: template.id!,
+  phoneNumberId: phone.id!,
+});
+
+// 3. See which variables the template needs
+const schema = await client.getCampaignRecipientSchema({ templateId: template.id! });
+console.log(schema.data.fields, schema.data.exampleRecipient);
+
+// 4. Add recipients (up to 1000 per campaign)
+await client.addCampaignRecipients(campaign._id, [
+  { phoneNumber: "9647712345678", templateParameters: { body: { "1": "Ali" } } },
+  { phoneNumber: "9647509876543", templateParameters: { body: { "1": "Sara" } } },
+]);
+
+// 5. Optionally send a test to yourself, then start
+await client.sendCampaignSample(campaign._id, [
+  { phoneNumber: "9647501234567", templateParameters: { body: { "1": "Test" } } },
+]);
+await client.startCampaign(campaign._id);
+
+// 6. Follow progress
+const { data: detail } = await client.getCampaign(campaign._id, { status: "failed" });
+console.log(detail.sentCount, detail.deliveredCount, detail.failedCount, detail.recipients);
+```
+
+To send later, create the campaign with `scheduleType: "schedule"` and a future `scheduledFor`. It starts on its own, so don't call `startCampaign`.
+
+`listCampaigns`, `updateCampaign` and `deleteCampaign` cover the rest. Only draft and scheduled campaigns can be changed or deleted.
+
+## Errors
+
+Every failed request throws an `OTPiqError` or one of its subclasses. All of them carry `statusCode`.
+
+| Class | When | Extra fields |
+| --- | --- | --- |
+| `ValidationError` | 400, invalid input | |
+| `InsufficientCreditError` | 400, not enough credit | `yourCredit`, `requiredCredit`, `canCover` |
+| `SpendingThresholdError` | 400, project spending limit reached | `currentSpending`, `spendingThreshold`, `cost` |
+| `SenderIdError` | 400, the sender ID was rejected | |
+| `TrialModeError` | 400, trial accounts can only message their own number | |
+| `UnauthorizedError` | 401, missing or invalid API key | |
+| `ForbiddenError` | 403, for example IP not on the project allowlist | |
+| `NotFoundError` | 404 | |
+| `RateLimitError` | 429 | `waitMinutes`, `maxRequests`, `timeWindowMinutes` |
+
+```typescript
+import { InsufficientCreditError, RateLimitError, OTPiqError } from "otpiq";
 
 try {
-  await client.sendSMS({
-    phoneNumber: "9647701234567",
-    smsType: "verification",
-  });
+  await client.sendSMS({ phoneNumber: "9647501234567", smsType: "verification" });
 } catch (error) {
-  if (error instanceof InsufficientCreditError) {
-    console.log(
-      `Need more credits! Required: ${error.requiredCredit}, ` +
-        `Available: ${error.yourCredit}, Can cover: ${error.canCover}`
-    );
-  } else if (error instanceof RateLimitError) {
-    console.log(
-      `Rate limit exceeded. Try again in ${error.waitMinutes} minutes. ` +
-        `Limit: ${error.maxRequests} requests per ${error.timeWindowMinutes} minutes`
-    );
-  } else if (error instanceof SpendingThresholdError) {
-    console.log(
-      `Spending threshold exceeded! Current: ${error.currentSpending}, ` +
-        `Threshold: ${error.spendingThreshold}, Transaction cost: ${error.cost}`
-    );
-  } else if (error instanceof TrialModeError) {
-    console.log("Trial mode: Can only send to your own phone number");
-  } else if (error instanceof SenderIdError) {
-    console.log("Sender ID error:", error.message);
-  } else if (error instanceof ValidationError) {
-    console.log("Validation error:", error.message);
-  } else if (error instanceof NotFoundError) {
-    console.log("Not found:", error.message);
-  } else if (error instanceof UnauthorizedError) {
-    console.log("Unauthorized:", error.message);
+  if (error instanceof RateLimitError) {
+    console.log(`Try again in ${error.waitMinutes} minutes`);
+  } else if (error instanceof InsufficientCreditError) {
+    console.log(`Need ${error.requiredCredit} IQD, have ${error.yourCredit}`);
   } else if (error instanceof OTPiqError) {
-    console.log("API Error:", error.message);
+    console.log(error.statusCode, error.message);
+  } else {
+    throw error;
   }
 }
 ```
 
-## Best Practices
+## Testing with a dev key
 
-1. **Error Handling**: Always implement proper error handling to catch and handle specific error types.
-2. **Verification Codes**: Never send verification codes back to the client. Store them securely server-side.
-3. **Provider Selection**:
-   - Use 'auto' provider for verification codes to let the system choose the best option
-   - Custom messages always use SMS provider (enforced by the API)
-   - Use WhatsApp/Telegram for verification codes when targeting specific platforms
-4. **Custom Messages**: Always use an approved sender ID when sending custom messages.
-5. **Environment Variables**: Store your API key in environment variables, never hardcode it.
-6. **Rate Limiting**: Implement client-side rate limiting to avoid hitting API limits.
-7. **Credit Monitoring**: Regularly check credit balance and implement alerts for low balance.
+OTPiq dev keys deliver every message to one development phone number that you set in the dashboard, whatever number the request contains. Use one as `apiKey` in development to avoid messaging real users. See [How Dev Keys Work](https://docs.otpiq.com/useful-articles/how-dev-key-works).
 
-## Contributing
+## Method reference
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+| Method | Endpoint |
+| --- | --- |
+| `getProjectInfo()`, `getCredits()` | `GET /info` |
+| `getSenderIds()` | `GET /sender-ids` |
+| `getInternationalPricing(options?)` | `GET /international-sms-pricing` |
+| `sendSMS(options)`, `sendWhatsApp`, `sendTelegram`, `sendCustomMessage`, `sendWhatsAppTemplate` | `POST /sms` |
+| `trackSMS(smsId)`, `getSMSStatus(smsId)` | `GET /sms/track/{smsId}` |
+| `generateReport(options)` | `POST /reports/generate` |
+| `listReports(options?)` | `GET /reports` |
+| `getWhatsAppResources(options?)` | `GET /whatsapp/resources` |
+| `createCampaign(options)` | `POST /whatsapp/campaigns` |
+| `listCampaigns(options?)` | `GET /whatsapp/campaigns` |
+| `getCampaign(id, options?)` | `GET /whatsapp/campaigns/{id}` |
+| `updateCampaign(id, options)` | `PATCH /whatsapp/campaigns/{id}` |
+| `deleteCampaign(id)` | `DELETE /whatsapp/campaigns/{id}` |
+| `addCampaignRecipients(id, recipients)` | `POST /whatsapp/campaigns/{id}/recipients` |
+| `sendCampaignSample(id, recipients)` | `POST /whatsapp/campaigns/{id}/sample` |
+| `startCampaign(id)` | `POST /whatsapp/campaigns/{id}/start` |
+| `getCampaignRecipientSchema(target)` | `GET /whatsapp/campaigns/recipient-payload` |
+
+All request and response types are exported from the package.
+
+## Development
+
+```bash
+npm install
+npm test
+```
 
 ## License
 
 MIT
-
-## Support
-
-For support:
-
-1. [Create an issue](https://github.com/yadacoder/otpiq/issues) on GitHub
-2. Contact support at info@otpiq.com
